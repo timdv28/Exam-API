@@ -1,9 +1,11 @@
 from fastapi import FastAPI
+from fastapi import Header
+from fastapi import HTTPException
 import pandas as pd
+import random
 from pydantic import BaseModel
 from typing import Optional
-from fastapi import HTTPException
-import random
+
 
 questions = pd.read_excel('questions_en.xlsx')
 identifiers = {
@@ -11,27 +13,30 @@ identifiers = {
     "bob": "builder",
     "clementine": "mandarine"
 }
+possible_q_amount = [5,10,20]
 
 api = FastAPI(
     title='MCQ creation'
 )
 
-# class Login(BaseModel):
-#     username: str
-#     password: str
+class Login(BaseModel):
+    username: str
+    password: str
 
-# class Ask(BaseModel):    
-#     qnumber: int
-#     type: Optional[str] = None
-#     subject: Optional[str] = None
+@api.put('/login')
+def put_login(login: Login,username):
+    # Check if the username is known
+    try:
+        logging_in = list(filter(lambda x: x.get(username) == str(username), 
+                                 identifiers))[0]
+    except:
+        raise HTTPException(
+            status_code=404,
+            detail='Username not known')
+        
+    # Check if the password belongs to the username
 
-# Hello world
-# @api.get('/')
-# def get_index():
-#     return {'data': 'hello world'}
-
-possible_q_amount = [5,10,20]
-# Get the number of questions
+    return {logging_in}
 
 # Try to get the list of questions
 @api.get('/Q/{qnumber:int}/type/{use}')
@@ -60,20 +65,22 @@ def get_questions(qnumber,use):
     
     """Get a list of questions
     """
-
-    for i in range(qnumber):
+    li = list(range(qnumber))
+    random.shuffle(li)
+    j = 1
+    for i in li:
         choices = {}
-        question = q['question'].iloc[i]
+        question = str(q['question'].iloc[i])
         
         choices['A'] = q['responseA'].iloc[i]
         choices['B'] = q['responseB'].iloc[i]
-        # if q['responseC'].iloc[i]:
-        #     choices['C'] = q['responseC'].iloc[i]
+        if q['responseC'].iloc[i]:
+            choices['C'] = q['responseC'].iloc[i]
         # if q['responseD'].iloc[i]:
         #     choices['D'] = q['responseD'].iloc[i]
         
-        Q[f'Question {i+1}'] = q['question'].iloc[i]
-        
+        Q[f'Question {j} -- '+question] = choices #q['question'].iloc[i]
+        j += 1
     # q_list = questions.where(questions['subject'] == use) 
     return {'Quiz': Q,
             'Amount': qnumber}
